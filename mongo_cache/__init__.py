@@ -1,8 +1,10 @@
 # coding: UTF-8
-from __future__ import absolute_import
+import pickle
 
-from werkzeug.contrib import BaseCache
+from werkzeug.contrib.cache import BaseCache
 from pymongo import MongoClient
+
+from bson.binary import Binary
 
 
 class MongoCache(BaseCache):
@@ -14,8 +16,15 @@ class MongoCache(BaseCache):
     """
 
     def __init__(self, default_timeout=300):
-        super(BaseCache, self).__init__(default_timeout)
+        super(MongoCache, self).__init__(default_timeout)
         self._database = MongoClient()
+
+    def _pickle(self, obj):
+        _bytes = pickle.dumps(obj)
+        return Binary(_bytes)
+
+    def _unpickle(self, binary):
+        return pickle.loads(binary)
 
     def get(self, key):
         """Look up key in the cache and return the value for it.
@@ -31,26 +40,6 @@ class MongoCache(BaseCache):
         :rtype: boolean
         """
         return True
-
-    def get_many(self, *keys):
-        """Returns a list of values for the given keys.
-        For each key a item in the list is created::
-            foo, bar = cache.get_many("foo", "bar")
-        Has the same error handling as :meth:`get`.
-        :param keys: The function accepts multiple keys as positional
-                     arguments.
-        """
-        return map(self.get, keys)
-
-    def get_dict(self, *keys):
-        """Like :meth:`get_many` but return a dict::
-            d = cache.get_dict("foo", "bar")
-            foo = d["foo"]
-            bar = d["bar"]
-        :param keys: The function accepts multiple keys as positional
-                     arguments.
-        """
-        return dict(zip(keys, self.get_many(*keys)))
 
     def set(self, key, value, timeout=None):
         """Add a new key/value to the cache (overwrites value, if key already
@@ -81,30 +70,6 @@ class MongoCache(BaseCache):
         """
         return True
 
-    def set_many(self, mapping, timeout=None):
-        """Sets multiple keys and values from a mapping.
-        :param mapping: a mapping with the keys/values to set.
-        :param timeout: the cache timeout for the key (if not specified,
-                        it uses the default timeout). A timeout of 0
-                        indicates tht the cache never expires.
-        :returns: Whether all given keys have been set.
-        :rtype: boolean
-        """
-        rv = True
-        for key, value in _items(mapping):
-            if not self.set(key, value, timeout):
-                rv = False
-        return rv
-
-    def delete_many(self, *keys):
-        """Deletes multiple keys at once.
-        :param keys: The function accepts multiple keys as positional
-                     arguments.
-        :returns: Whether all given keys have been deleted.
-        :rtype: boolean
-        """
-        return all(self.delete(key) for key in keys)
-
     def has(self, key):
         """Checks if a key exists in the cache without returning it. This is a
         cheap operation that bypasses loading the actual data on the backend.
@@ -125,25 +90,3 @@ class MongoCache(BaseCache):
         :rtype: boolean
         """
         return True
-
-    def inc(self, key, delta=1):
-        """Increments the value of a key by `delta`.  If the key does
-        not yet exist it is initialized with `delta`.
-        For supporting caches this is an atomic operation.
-        :param key: the key to increment.
-        :param delta: the delta to add.
-        :returns: The new value or ``None`` for backend errors.
-        """
-        value = (self.get(key) or 0) + delta
-        return value if self.set(key, value) else None
-
-    def dec(self, key, delta=1):
-        """Decrements the value of a key by `delta`.  If the key does
-        not yet exist it is initialized with `-delta`.
-        For supporting caches this is an atomic operation.
-        :param key: the key to increment.
-        :param delta: the delta to subtract.
-        :returns: The new value or `None` for backend errors.
-        """
-        value = (self.get(key) or 0) - delta
-        return value if self.set(key, value) else None
