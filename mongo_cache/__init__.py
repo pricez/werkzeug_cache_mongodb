@@ -17,7 +17,9 @@ class MongoCache(BaseCache):
 
     def __init__(self, default_timeout=300):
         super(MongoCache, self).__init__(default_timeout)
-        self._database = MongoClient()
+        _connection = MongoClient()
+        _database = _connection['TestCache']
+        self.collection = _database['Cache']
 
     def _pickle(self, obj):
         _bytes = pickle.dumps(obj)
@@ -31,7 +33,11 @@ class MongoCache(BaseCache):
         :param key: the key to be looked up.
         :returns: The value if it exists and is readable, else ``None``.
         """
-        return None
+        _filter = {'_id': key}
+        doc = self.collection.find_one(_filter)
+
+        if doc:
+            return self._unpickle(doc['value'])
 
     def delete(self, key):
         """Delete `key` from the cache.
@@ -39,7 +45,13 @@ class MongoCache(BaseCache):
         :returns: Whether the key existed and has been deleted.
         :rtype: boolean
         """
-        return True
+        _filter = {'_id': key}
+        count = self.collection.count(_filter)
+
+        if count:
+            self.collection.delete(_filter)
+            return True
+        return False
 
     def set(self, key, value, timeout=None):
         """Add a new key/value to the cache (overwrites value, if key already
@@ -54,6 +66,14 @@ class MongoCache(BaseCache):
                   ``pickle.PickleError``.
         :rtype: boolean
         """
+        value = self._pickle(value)
+
+        doc = {
+            '_id': key,
+            'value': value
+        }
+
+        inserted = self.collection.save(doc)
         return True
 
     def add(self, key, value, timeout=None):
@@ -68,7 +88,12 @@ class MongoCache(BaseCache):
                   existing keys.
         :rtype: boolean
         """
-        return True
+        _filter = {'_id': key}
+
+        document = self.collection.find_one(_filter)
+        if not document:
+            return self.set(key, value, timeout)
+        return False
 
     def clear(self):
         """Clears the cache.  Keep in mind that not all caches support
@@ -76,4 +101,5 @@ class MongoCache(BaseCache):
         :returns: Whether the cache has been cleared.
         :rtype: boolean
         """
+        self.collection.drop()
         return True

@@ -13,17 +13,19 @@ class MockData(object):
     def __init__(self, x):
         self.x = x
 
+    def __eq__(self, mock_data):
+        print mock_data
+        return self.x == mock_data.x
+
+
 
 class TestCache(unittest.TestCase):
 
     def setUp(self):
-        mongo = MongoClient()
-        db = mongo['test-db']
-        self.cache_coll = db['cache']
         self.cache = MongoCache(default_timeout=0)
 
     def tearDown(self):
-        self.cache_coll.delete_many({})
+        self.cache.collection.delete_many({})
 
     def test_get(self):
         x = MockData(1)
@@ -67,7 +69,7 @@ class TestCache(unittest.TestCase):
 
         self.assertFalse(added)
 
-    def test_clear_with_data(self):
+    def test_clear(self):
         x = MockData(1)
         self.cache.set('key-1', x)
 
@@ -77,7 +79,17 @@ class TestCache(unittest.TestCase):
         self.assertTrue(cleared)
         self.assertIsNone(xc)
 
-    def test_clear_without_data(self):
-        cleared = self.cache.clear()
+    def test_set_overwrite(self):
+        x1 = MockData(1)
+        key = 'key-set-overwrite'
+        self.cache.set(key, x1)
 
-        self.assertFalse(cleared)
+        x2 = MockData(2)
+        self.cache.set(key, x2)
+
+        _filter = {'_id': key}
+        count_keys = self.cache.collection.count(_filter)
+
+        self.assertEqual(1, count_keys)
+
+
