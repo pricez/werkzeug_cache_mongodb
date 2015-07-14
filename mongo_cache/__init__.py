@@ -70,19 +70,6 @@ class MongoCache(BaseCache):
         """
         return True
 
-    def has(self, key):
-        """Checks if a key exists in the cache without returning it. This is a
-        cheap operation that bypasses loading the actual data on the backend.
-        This method is optional and may not be implemented on all caches.
-        :param key: the key to check
-        """
-        raise NotImplementedError(
-            '%s doesn\'t have an efficient implementation of `has`. That '
-            'means it is impossible to check whether a key exists without '
-            'fully loading the key\'s data. Consider using `self.get` '
-            'explicitly if you don\'t care about performance.'
-        )
-
     def clear(self):
         """Clears the cache.  Keep in mind that not all caches support
         completely clearing the cache.
