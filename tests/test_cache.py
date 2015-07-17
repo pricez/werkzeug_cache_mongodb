@@ -184,6 +184,67 @@ class TestCache(unittest.TestCase):
         self.assertEqual(value, value_cache)
         self.assertEqual(None, new_value)
 
+    def test_get_many(self):
+        keys = ['key-%s' % i for i in range(1, 11)]
+
+        for key, value in zip(keys, range(1, 11)):
+            self.cache.add(key, MockData(value))
+
+        values = self.cache.get_many(*keys)
+
+        self.assertEqual(10, len(values))
+        for _return, _range in zip(values, range(1, 11)):
+            self.assertEqual(MockData(_range), _return)
+
+    def test_get_dict(self):
+        key_x_value = {'key-%s' % i: MockData(i) for i in range(1, 6)}
+
+        for key, value in key_x_value.items():
+            self.cache.add(key, value)
+
+        results = self.cache.get_dict(*key_x_value.keys())
+
+        self.assertIsInstance(result, dict)
+        for key, value in key_x_value.items():
+            self.assertIn(key, result)
+            self.assertEqual(key_x_value[key], results[key])
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -58,6 +58,28 @@ class MongoCache(BaseCache):
             return True
         return False
 
+    def get_many(self, *keys):
+        """Returns a list of values for the given keys.
+        For each key a item in the list is created::
+            foo, bar = cache.get_many("foo", "bar")
+        Has the same error handling as :meth:`get`.
+        :param keys: The function accepts multiple keys as positional
+                     arguments.
+        """
+        key_x_value = self.get_dict(*keys)
+        return [key_x_value[key] for key in keys]
+
+    def get_dict(self, *keys):
+        """Like :meth:`get_many` but return a dict::
+            d = cache.get_dict("foo", "bar")
+            foo = d["foo"]
+            bar = d["bar"]
+        :param keys: The function accepts multiple keys as positional
+                     arguments.
+        """
+        documents = self.collection.find({'_id': {'$in': keys}})
+        return {d['_id'] : self._unpickle(d['value']) for d in documents}
+
     def set(self, key, value, timeout=None):
         """Add a new key/value to the cache (overwrites value, if key already
         exists in the cache).
@@ -141,4 +163,4 @@ class MongoCache(BaseCache):
         :param delta: the delta to subtract.
         :returns: The new value or `None` for backend errors.
         """
-        return self.inc(key, (-1)*delta)
+        return self.inc(key, -delta)
