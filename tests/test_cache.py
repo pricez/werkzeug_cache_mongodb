@@ -2,6 +2,7 @@
 from __future__ import absolute_import
 
 import unittest
+import mock
 
 from pymongo import MongoClient
 
@@ -15,7 +16,6 @@ class MockData(object):
 
     def __eq__(self, mock_data):
         return self.x == mock_data.x
-
 
 
 class TestCache(unittest.TestCase):
@@ -229,3 +229,58 @@ class TestCache(unittest.TestCase):
 
         self.assertTrue(result)
         self.assertEqual(5, self.cache.collection.count({'_id': {'$in': key_x_value.keys()}}))
+
+@mock.patch('mongo_cache.MongoCache._time')
+class TestTimeout(unittest.TestCase):
+
+    def setUp(self):
+        self.cache = MongoCache()
+
+    def tearDown(self):
+        self.cache.collection.delete_many({})
+
+    def test_set(self, mock_time):
+        key = 'key-set'
+        mock_time.return_value = 100
+
+        self.cache.set(key, MockData(1), timeout=300)
+
+        doc = self.cache.collection.find_one({'_id': key})
+
+        self.assertIn('expires', doc)
+        self.assertEqual(400, doc['expires'])
+        self.assertIn('value', doc)
+
+    def test_get_not_expired(self, mock_time):
+        key = 'key-not-expired'
+        mock_time.return_value = 100
+
+        self.cache.set(key, MockData(1), timeout=100)
+
+        mock_time.return_value = 150
+        result = self.cache.get(key)
+
+        self.assertIsNotNone(result)
+        self.assertEqual(result, MockData(1))
+
+    def test_get_timeout_0(self, mock_time):
+        key = 'key-not-expired'
+        mock_time.return_value = 100
+
+        self.cache.set(key, MockData(1), timeout=0)
+
+        result = self.cache.get(key)
+
+        self.assertIsNotNone(result)
+        self.assertEqual(result, MockData(1))
+
+    def test_get_expired(self, mock_time):
+        key = 'key-get-expired'
+        mock_time.return_value = 100
+
+        self.cache.set(key, MockData(1), timeout=100)
+
+        mock_time.return_value = 201
+        result = self.cache.get(key)
+
+        self.assertIsNone(result)

@@ -4,7 +4,7 @@ import pickle
 from werkzeug.contrib.cache import BaseCache
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
-
+from time import time
 from bson.binary import Binary
 
 
@@ -33,6 +33,19 @@ class MongoCache(BaseCache):
             return pickle.loads(binary)
         return binary
 
+    def _get_expiration(self, timeout):
+        if timeout is None:
+            timeout = self.default_timeout
+        if timeout > 0:
+            timeout = self._time() + timeout
+        return timeout
+
+    def _time(self):
+        """
+        Wrapper funcion for time.time() for easier mocking
+        """
+        return time()
+
     def get(self, key):
         """Look up key in the cache and return the value for it.
         :param key: the key to be looked up.
@@ -41,7 +54,7 @@ class MongoCache(BaseCache):
         _filter = {'_id': key}
         doc = self.collection.find_one(_filter)
 
-        if doc:
+        if doc and (doc['expires'] == 0 or doc['expires'] >= self._time()):
             return self._unpickle(doc['value'])
 
     def delete(self, key):
@@ -97,7 +110,8 @@ class MongoCache(BaseCache):
 
         doc = {
             '_id': key,
-            'value': value
+            'value': value,
+            'expires': self._get_expiration(timeout)
         }
 
         inserted = self.collection.save(doc)
