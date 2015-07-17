@@ -46,6 +46,26 @@ class MongoCache(BaseCache):
         """
         return time()
 
+    def _verify_timeout(self, doc):
+        """Verifies if a document has expired.
+        :param doc: document to verify.
+        :returns: Whether the document has expired or not.
+        :rtype: boolean
+        """
+        expires = doc['expires']
+        if expires == 0:
+            return False
+        if expires >= self._time():
+            return False
+        return True
+
+    def _get_doc(self, key, value, timeout):
+        return {
+            '_id': key,
+            'value': self._pickle(value),
+            'expires': self._get_expiration(timeout)
+        }
+
     def get(self, key):
         """Look up key in the cache and return the value for it.
         :param key: the key to be looked up.
@@ -54,7 +74,7 @@ class MongoCache(BaseCache):
         _filter = {'_id': key}
         doc = self.collection.find_one(_filter)
 
-        if doc and (doc['expires'] == 0 or doc['expires'] >= self._time()):
+        if doc and not self._verify_timeout(doc):
             return self._unpickle(doc['value'])
 
     def delete(self, key):
@@ -106,13 +126,7 @@ class MongoCache(BaseCache):
                   ``pickle.PickleError``.
         :rtype: boolean
         """
-        value = self._pickle(value)
-
-        doc = {
-            '_id': key,
-            'value': value,
-            'expires': self._get_expiration(timeout)
-        }
+        doc = self._get_doc(key, value, timeout)
 
         inserted = self.collection.save(doc)
         return True
@@ -142,7 +156,7 @@ class MongoCache(BaseCache):
         :returns: Whether all given keys have been set.
         :rtype: boolean
         """
-        values = [{'_id': key, 'value': self._pickle(value)} for key, value in mapping.iteritems()]
+        values = [self._get_doc(key, value, timeout) for key, value in mapping.iteritems()]
         self.collection.insert_many(values)
         return True
 
