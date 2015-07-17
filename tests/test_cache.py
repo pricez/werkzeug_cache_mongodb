@@ -185,16 +185,16 @@ class TestCache(unittest.TestCase):
         self.assertEqual(None, new_value)
 
     def test_get_many(self):
-        keys = ['key-%s' % i for i in range(1, 11)]
+        key_x_value = {'key-%s' % i: MockData(i) for i in range(1, 11)}
 
-        for key, value in zip(keys, range(1, 11)):
-            self.cache.add(key, MockData(value))
+        for key, value in key_x_value.items():
+            self.cache.add(key, value)
 
-        values = self.cache.get_many(*keys)
+        values = self.cache.get_many(*key_x_value.keys())
 
         self.assertEqual(10, len(values))
-        for _return, _range in zip(values, range(1, 11)):
-            self.assertEqual(MockData(_range), _return)
+        for _return, _value in zip(values, key_x_value.values()):
+            self.assertEqual(_value, _return)
 
     def test_get_dict(self):
         key_x_value = {'key-%s' % i: MockData(i) for i in range(1, 6)}
@@ -204,51 +204,21 @@ class TestCache(unittest.TestCase):
 
         results = self.cache.get_dict(*key_x_value.keys())
 
-        self.assertIsInstance(result, dict)
+        self.assertIsInstance(results, dict)
         for key, value in key_x_value.items():
-            self.assertIn(key, result)
+            self.assertIn(key, results)
             self.assertEqual(key_x_value[key], results[key])
 
+    def test_delete_many(self):
+        key_x_value = {'key-%s' % i: MockData(i) for i in range(1, 6)}
 
+        for key, value in key_x_value.items():
+            self.cache.add(key, value)
 
+        self.assertEqual(5, self.cache.collection.count({'_id': {'$in': key_x_value.keys()}}))
 
+        result = self.cache.delete_many(*key_x_value.keys())
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        self.assertTrue(result)
+        self.assertEqual(0, self.cache.collection.count({'_id': {'$in': key_x_value.keys()}}))
 

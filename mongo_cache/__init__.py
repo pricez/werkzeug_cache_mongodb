@@ -119,6 +119,16 @@ class MongoCache(BaseCache):
             return False
         return self.set(key, value, timeout)
 
+    def delete_many(self, *keys):
+        """Deletes multiple keys at once.
+        :param keys: The function accepts multiple keys as positional
+                     arguments.
+        :returns: Whether all given keys have been deleted.
+        :rtype: boolean
+        """
+        self.collection.remove({'_id': {'$in': keys}})
+        return True
+
     def has(self, key):
         """Checks if a key exists in the cache without returning it. This is a
         cheap operation that bypasses loading the actual data on the backend.
