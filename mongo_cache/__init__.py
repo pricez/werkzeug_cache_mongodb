@@ -119,6 +119,19 @@ class MongoCache(BaseCache):
             return False
         return self.set(key, value, timeout)
 
+    def set_many(self, mapping, timeout=None):
+        """Sets multiple keys and values from a mapping.
+        :param mapping: a mapping with the keys/values to set.
+        :param timeout: the cache timeout for the key (if not specified,
+                        it uses the default timeout). A timeout of 0
+                        indicates tht the cache never expires.
+        :returns: Whether all given keys have been set.
+        :rtype: boolean
+        """
+        values = [{'_id': key, 'value': self._pickle(value)} for key, value in mapping.iteritems()]
+        self.collection.insert_many(values)
+        return True
+
     def delete_many(self, *keys):
         """Deletes multiple keys at once.
         :param keys: The function accepts multiple keys as positional

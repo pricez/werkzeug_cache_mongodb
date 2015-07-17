@@ -222,3 +222,10 @@ class TestCache(unittest.TestCase):
         self.assertTrue(result)
         self.assertEqual(0, self.cache.collection.count({'_id': {'$in': key_x_value.keys()}}))
 
+    def test_set_many(self):
+        key_x_value = {'key-set-many-%s' % i: MockData(i) for i in range(1, 6)}
+
+        result = self.cache.set_many(key_x_value)
+
+        self.assertTrue(result)
+        self.assertEqual(5, self.cache.collection.count({'_id': {'$in': key_x_value.keys()}}))
