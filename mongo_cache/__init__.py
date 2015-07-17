@@ -3,6 +3,7 @@ import pickle
 
 from werkzeug.contrib.cache import BaseCache
 from pymongo import MongoClient
+from pymongo.errors import PyMongoError
 
 from bson.binary import Binary
 
@@ -22,11 +23,15 @@ class MongoCache(BaseCache):
         self.collection = _database['Cache']
 
     def _pickle(self, obj):
-        _bytes = pickle.dumps(obj)
-        return Binary(_bytes)
+        if not str(obj).isdigit():
+            _bytes = pickle.dumps(obj)
+            obj = Binary(_bytes)
+        return obj
 
     def _unpickle(self, binary):
-        return pickle.loads(binary)
+        if isinstance(binary, Binary):
+            return pickle.loads(binary)
+        return binary
 
     def get(self, key):
         """Look up key in the cache and return the value for it.
@@ -49,7 +54,7 @@ class MongoCache(BaseCache):
         count = self.collection.count(_filter)
 
         if count:
-            self.collection.delete(_filter)
+            self.collection.remove(_filter)
             return True
         return False
 
@@ -88,12 +93,17 @@ class MongoCache(BaseCache):
                   existing keys.
         :rtype: boolean
         """
-        _filter = {'_id': key}
+        if self.has(key):
+            return False
+        return self.set(key, value, timeout)
 
-        document = self.collection.find_one(_filter)
-        if not document:
-            return self.set(key, value, timeout)
-        return False
+    def has(self, key):
+        """Checks if a key exists in the cache without returning it. This is a
+        cheap operation that bypasses loading the actual data on the backend.
+        This method is optional and may not be implemented on all caches.
+        :param key: the key to check
+        """
+        return self.collection.find_one({'_id': key}) is not None
 
     def clear(self):
         """Clears the cache.  Keep in mind that not all caches support
@@ -103,3 +113,32 @@ class MongoCache(BaseCache):
         """
         self.collection.drop()
         return True
+
+    def inc(self, key, delta=1):
+        """Increments the value of a key by `delta`.  If the key does
+        not yet exist it is initialized with `delta`.
+        For supporting caches this is an atomic operation.
+        :param key: the key to increment.
+        :param delta: the delta to add.
+        :returns: The new value or ``None`` for backend errors.
+        """
+        if self.has(key):
+            _filter = {'_id': key}
+            document = {'$inc': {'value': delta}}
+            try:
+                self.collection.update(_filter, document)
+            except PyMongoError:
+                return None
+        else:
+            self.add(key, delta)
+        return self.get(key)
+
+    def dec(self, key, delta=1):
+        """Decrements the value of a key by `delta`.  If the key does
+        not yet exist it is initialized with `-delta`.
+        For supporting caches this is an atomic operation.
+        :param key: the key to increment.
+        :param delta: the delta to subtract.
+        :returns: The new value or `None` for backend errors.
+        """
+        return self.inc(key, (-1)*delta)

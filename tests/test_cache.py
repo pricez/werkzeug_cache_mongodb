@@ -14,7 +14,6 @@ class MockData(object):
         self.x = x
 
     def __eq__(self, mock_data):
-        print mock_data
         return self.x == mock_data.x
 
 
@@ -91,5 +90,104 @@ class TestCache(unittest.TestCase):
         count_keys = self.cache.collection.count(_filter)
 
         self.assertEqual(1, count_keys)
+
+    def test_inc_with_exist_key(self):
+        value = 10
+        key = 'key-inc-with-exist-key'
+        self.cache.set(key, value)
+
+        delta = 9
+        new_value = self.cache.inc(key, delta)
+
+        value_cache = self.cache.get(key)
+
+        result = delta + value
+
+        self.assertEqual(result, value_cache)
+        self.assertEqual(result, new_value)
+
+    def test_inc_witho_exist_key(self):
+        key = 'key-inc-without-exist-key'
+        delta = 9
+        new_value = self.cache.inc(key, delta)
+
+        value_cache = self.cache.get(key)
+
+        self.assertEqual(delta, value_cache)
+        self.assertEqual(delta, new_value)
+
+    def test_inc_with_error(self):
+        value = MockData(1)
+        key = 'key-inc-with-error'
+        self.cache.add(key, value)
+
+        delta = 9
+        new_value = self.cache.inc(key, delta)
+
+        value_cache = self.cache.get(key)
+
+        self.assertEqual(value, value_cache)
+        self.assertEqual(None, new_value)
+
+    def test_has_with_add_key(self):
+        key = 'key-has-with-add-key'
+        value = MockData(1)
+
+        self.cache.add(key, value)
+
+        has_key = self.cache.has(key)
+
+        self.assertTrue(has_key)
+
+    def test_has_without_add_key(self):
+        key = 'key-has-without-add-key'
+
+        has_key = self.cache.has(key)
+
+        self.assertFalse(has_key)
+
+    def test_dec_with_exist_key(self):
+        value = 10
+        key = 'key-dec-with-exist-key'
+        self.cache.set(key, value)
+
+        delta = 9
+        new_value = self.cache.dec(key, delta)
+
+        value_cache = self.cache.get(key)
+
+        result = value - delta
+
+        self.assertEqual(result, value_cache)
+        self.assertEqual(result, new_value)
+
+    def test_dec_witho_exist_key(self):
+        key = 'key-dec-without-exist-key'
+        delta = 9
+        new_value = self.cache.dec(key, delta)
+
+        value_cache = self.cache.get(key)
+
+        self.assertEqual(-delta, value_cache)
+        self.assertEqual(-delta, new_value)
+
+    def test_dec_with_error(self):
+        value = MockData(1)
+        key = 'key-dec-with-error'
+        self.cache.add(key, value)
+
+        delta = 9
+        new_value = self.cache.dec(key, delta)
+
+        value_cache = self.cache.get(key)
+
+        self.assertEqual(value, value_cache)
+        self.assertEqual(None, new_value)
+
+
+
+
+
+
 
 
