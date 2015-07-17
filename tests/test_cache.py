@@ -284,3 +284,19 @@ class TestTimeout(unittest.TestCase):
         result = self.cache.get(key)
 
         self.assertIsNone(result)
+
+    def test_get_many_expired(self, mock_time):
+        key_timeout_1 = 'key-timeout-1'
+        key_timeout_100 = 'key-timeout-100'
+
+        mock_time.return_value = 100
+
+        self.cache.set(key_timeout_1, MockData(1), timeout=1)
+        self.cache.set(key_timeout_100, MockData(1), timeout=100)
+
+        mock_time.return_value = 150
+
+        results = self.cache.get_many(*[key_timeout_1, key_timeout_100])
+
+        self.assertIsNone(results[0])
+        self.assertIsNotNone(results[1])

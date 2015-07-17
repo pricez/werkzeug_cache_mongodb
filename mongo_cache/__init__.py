@@ -110,8 +110,14 @@ class MongoCache(BaseCache):
         :param keys: The function accepts multiple keys as positional
                      arguments.
         """
+        result = {}
         documents = self.collection.find({'_id': {'$in': keys}})
-        return {d['_id'] : self._unpickle(d['value']) for d in documents}
+        for document in documents:
+            if self._verify_timeout(document):
+                result[document['_id']] = None
+            else:
+                result[document['_id']] = self._unpickle(document['value'])
+        return result
 
     def set(self, key, value, timeout=None):
         """Add a new key/value to the cache (overwrites value, if key already
